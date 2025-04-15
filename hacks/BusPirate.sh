@@ -1,26 +1,35 @@
 #!/bin/sh
-# Launch BusPirate using your choice of terminal emulators
-# It checks for mounted file systems and warns you if they are missing
-# If the BusPirate is in boot mode, it helps install new firmware,
-# and prevents some errors like installing incompatible firmware
+# Function: Launch BusPirate using your choice of terminal emulators
+#    Also - it makes it easier to upload new firmware, preventing mistakes
+# 
+# It checks for mounted file systems and warns you if the filesystem is missing
+#           i.e. The BusPirate is not plugged in
+#           The -n option overrides this
+# If the BusPirate is in boot mode, it looks for the matching firmware
+#           and prompts you to install it
+# It prevents some errors like installing incompatible firmware
+# 
 # There is a companion program - BusPirateSetup - that helps set things up.
 # Run that program first
 
-# Usage: BusPirate [-n] [-v] [terminal] [baud]
-#       BusPirate -n       -- ignores the checks for mounted file system
-#       BusPirate -v       -- echos the command, port, and baud rate
+# Usage: BusPirate [-n] [-v] [-c config ] [terminal] [baud]
+#       BusPirate -n        -- ignores the checks for mounted file system
+#       BusPirate -v        -- echos the terminal command, port, and baud rate
+#       BusPirate -c config -- Uses an alternate config file
 # Examples
 #       BusPirate                             - uses the defaults
 # 		BusPirate /dev/ttyACM2                - if it's on a different port
 # 		BusPirate -n /dev/ttyACM0 11920       - Ignore mounted file system, specify al params
+# 		BusPirate -f  puttyconfig             - Ignores the default config,
+#                                               auses alternate terminal program
 # To Install:
 #    install BusPirateSetup.sh ~/bin/BusPirate
+# You can also ranme it to anything you want.
 
 # Time-stamp: <2024-12-11 09:33:01 (grymoire)> 
 
 
-CONFIG=config # Configuration file in ~/.config/buspirate
-
+CONFIG="$HOME/.config/buspirate/config" # Configuration file in ~/.config/buspirate
 connect() { # Connect to BusPirate 
     # This function connects to the BP with your choice of terminal emulator
     # It evaluates the variable $CMD, which was set up by BusPirateSetup
@@ -49,22 +58,26 @@ usage() {
     # shellcheck disable=SC2046
 	printf "%s: ERROR: %s\n" $(basename "$0") "$@" 1>&2
     # shellcheck disable=SC2046
-    printf "usage: %s [-n] [-v] [port] [baud]\n" $(basename "$0") 1>&2
+    printf "usage: %s [-n] [-v] [-c conf] [port] [baud]\n" $(basename "$0") 1>&2
     printf "          -n = Do not look for a /mnt/%s/BUS_PIRATE5 directory\n" "$USER" 1>&2
-    printf "          -v = Print out command before executing"
+    printf "          -v = Print out command before executing\n"
+    printf "          -c config  = Use alternate config file\n"
 	exit 1
 }
 
 setup() {
     # Check for config file
-    if [ ! -f "$HOME/.config/buspirate/$CONFIG" ]
+    if [ ! -f "$CONFIG" ]
     then
-        printf "%s\n%s " "First time use." "Do you want me to run BusPirateSetup?"
+        printf "Config file '%s' not found.\n%s " "$CONFIG" "Do you want me to run BusPirateSetup? [y/N/q]"
         read -r ans
         case $ans in
             [Yy]* )
                 BusPirateSetup || printf "%s\n\t%s\n" "Install BusPirateSetup by typing" \
                                          "install BusPirateSetup.sh ~/bin/BusPirateSetup"
+                exit
+                ;;
+            [qQ]* ) # exit/escape
                 exit
                 ;;
             * )
@@ -86,6 +99,9 @@ check() {
             case "$answer" in
                 [Yy]* )
                     cp "$FW/$RP2040FIRMWARE" /media/"$USER"/RPI-RP2
+                    umount /media/"$USER"/RPI-RP2                    
+                    
+
                     exit
                     ;;
                 * )
@@ -108,6 +124,7 @@ check() {
             case "$answer" in
                 [Yy]* )
                     cp "$FW/$RP2350FIRMWARE" /media/"$USER"/RP2350
+                    umount /media/"$USER"/RP2350
                     exit
                     ;;
                 * )
@@ -144,6 +161,7 @@ then
     case "$1" in
         -n) CHECK=0; shift;;    # Disable mounted file systenm check
         -v) VERBOSE=1; shift;;  # enable verbose mode
+        -c) shift; CONFIG=${1?'Missing config filename'};shift;;  # Optional config file
         -*) usage "Unknown argument '$1'";;
     esac
 fi    
@@ -152,7 +170,7 @@ PORT=${1:-"/dev/ttyACM0"} # default port
 BAUD=${2:-"11520"} # default baud rate - if you really want to change it
 
 # setup
-if [ ! -f "$HOME/.config/buspirate/${CONFIG}" ]
+if [ ! -f "$CONFIG" ]
 then
     setup
 else 
@@ -169,7 +187,7 @@ else
 
     # source the config file
     # shellcheck source=/dev/null
-    . "$HOME/.config/buspirate/${CONFIG}"
+    . "$CONFIG"
 fi
 
 

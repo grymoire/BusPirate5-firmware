@@ -1,18 +1,30 @@
 #!/usr/bin/sh
 # BusPirateSetup
-# This script generates the file $HOME/.config/buspirate
+# This script is used to configure your script that connects to a BusPirate
+# 
 # It lets you configure
 #	1) If you have a BusPirate 5XL instead of a BusPirate 6
 #	2) If you have a BusPirate 5 Rev 8 instead of the released BusPirate 5
 #	3) The directory where new versions of the firmware are located
 #   4) Which terminal emulation program you use
+# Output: 
+#    This script generates the file $HOME/.config/buspirate
+#    If this file exists, it will back it up when it creates a new config file
 
-CONFIG=config
+# Note 
 # You can re-run this program at any time to modify these values
+# You can also call BusPirate.sh to create a new config file
 # Optionally, you can edit ~/.config/buspirate/$CONFIG
+# Installation:
+# a) You can just execute it, or
+# b) You can install it via
+#    install BusPirateSetup.sh ~/bin/BusPirateSetup
+
 
 # Time-stamp: <2024-12-04 09:18:21 (grymoire)>
 
+#What is the name of the file?
+CONFIG=config
 # make sure there is a config file is there first
 if [ ! -d "$HOME/.config" ]
 then
@@ -21,6 +33,13 @@ fi
 if [ ! -d "$HOME/.config/buspirate" ]
 then
     mkdir "$HOME/.config/buspirate"
+fi
+if [ -f "$HOME/.config/buspirate/${CONFIG}" ]
+then
+    # Previous version exists. Save it.
+    printf "%s\n" "Backing up old config file"
+    printf "cp $HOME/.config/buspirate/$CONFIG $HOME/.config/buspirate/${CONFIG}.%s\n"  "$(date +%F)"
+    cp "$HOME/.config/buspirate/${CONFIG}" "$HOME/.config/buspirate/${CONFIG}.$(date +%F)"    
 fi
 if [ ! -f "$HOME/.config/buspirate/${CONFIG}" ]
 then
@@ -71,7 +90,7 @@ fi
 
    printf "%s\n" "--------------------"
    printf "%s\n" "Selecting the default directory where you download/build *.uf2 files"
-   printf "Default Directory (examples: . ~/Downloads etc.)? \n" 
+   printf "Default Directory (examples: . ./src ~/Downloads)? \n" 
    read -r ans
    FW="$ans"
    
